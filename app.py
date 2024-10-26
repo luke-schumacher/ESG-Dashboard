@@ -1,11 +1,10 @@
-import streamlit as st  # web development
-import numpy as np  # np mean, np random
-import pandas as pd  # read csv, df manipulation
-import time  # to simulate real-time data, time loop
-import plotly.express as px  # interactive charts
-import plotly.graph_objects as go  # for advanced plotting
+import streamlit as st
+import numpy as np 
+import pandas as pd  
+import time 
+import plotly.express as px  
+import plotly.graph_objects as go  
 
-# Read CSV from local directory
 df = pd.read_csv("data/filtered_ESGdataset_complete.csv")
 
 # Set page configuration
