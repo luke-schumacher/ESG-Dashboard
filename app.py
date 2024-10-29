@@ -4,7 +4,7 @@ import pandas as pd  # read csv, df manipulation
 import time  # to simulate real-time data, time loop
 import plotly.express as px  # interactive charts
 import json  # for JSON formatting
-
+#helllooooo world
 # Read CSV from local directory
 df = pd.read_csv("data/filtered_ESGdataset_complete.csv")
 
