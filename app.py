@@ -1,16 +1,21 @@
-import streamlit as st
-import numpy as np 
-import pandas as pd  
-import time 
-import plotly.express as px  
-import plotly.graph_objects as go  
+import streamlit as st  # web development
+import numpy as np  # np mean, np random
+import pandas as pd  # read csv, df manipulation
+import time  # to simulate real-time data, time loop
+import plotly.express as px  # interactive charts
+import json  # for JSON formatting
 
+# Read CSV from local directory
 df = pd.read_csv("data/filtered_ESGdataset_complete.csv")
 
-# Set page configuration
+# Remove any irrelevant columns (like 'Unnamed: 67') and keep only year columns and other necessary columns
+df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
+year_columns = df.columns[4:]  # assuming years start from the 5th column onwards
+
+# Set page configuration with a sustainability-related icon
 st.set_page_config(
     page_title='Real-Time ESG Dashboard',
-    page_icon='✅',
+    page_icon='🌍',  # Sustainability-related icon
     layout='wide'
 )
 
@@ -19,87 +24,83 @@ st.title("ESG Dashboard")
 
 # Top-level filters
 country_filter = st.selectbox("Select the Country", pd.unique(df['Country Name']))
+indicator_filter = st.selectbox("Select Indicator", pd.unique(df['Indicator Name']))
 
-# Creating a single-element container
+# Single-element container
 placeholder = st.empty()
 
-# DataFrame filter based on selected country
-df = df[df['Country Name'] == country_filter]
+# Filter DataFrame based on selected country and indicator
+df = df[(df['Country Name'] == country_filter) & (df['Indicator Name'] == indicator_filter)]
+
+# Reshape data for year-based analysis and remove any non-numeric year columns
+df_melted = df.melt(id_vars=['Country Name', 'Country Code', 'Indicator Name', 'Indicator Code'], 
+                    value_vars=year_columns, var_name='Year', value_name='Value')
+df_melted['Year'] = pd.to_numeric(df_melted['Year'], errors='coerce')
+df_melted.dropna(subset=['Year', 'Value'], inplace=True)  # remove rows where Year or Value is NaN
 
 # Near real-time / live feed simulation
 for seconds in range(200):
     # Simulate new data for visualization
-    df['Adjusted Savings'] = df['1960'] + np.random.choice(range(0, 100), size=len(df))
-    df['Natural Resources Depletion'] = df['1960'] * np.random.choice(range(1, 5), size=len(df))
+    df_melted['Adjusted Savings'] = df_melted['Value'] + np.random.choice(range(0, 100), size=len(df_melted))
+    df_melted['Natural Resources Depletion'] = df_melted['Value'] * np.random.choice(range(1, 5), size=len(df_melted))
 
-    # Creating KPIs
-    avg_savings = np.mean(df['Adjusted Savings'])
-    total_depletion = np.sum(df['Natural Resources Depletion'])
-
+    # Calculate KPIs
+    avg_value = np.mean(df_melted['Value'])
+    total_depletion = np.sum(df_melted['Natural Resources Depletion'])
+    latest_value = df_melted[df_melted['Year'] == 2022]['Value'].values[0] if 2022 in df_melted['Year'].values else np.nan
+    
     with placeholder.container():
-        # Add a loading spinner to enhance user feedback during data update
-        with st.spinner("Updating data..."):
-            time.sleep(1)
-
-        # Create three columns for KPIs
+        # KPI columns
         kpi1, kpi2, kpi3 = st.columns(3)
+        kpi1.metric(label=f"Avg {indicator_filter} (%)", value=round(avg_value, 2))
+        kpi2.metric(label="Total Natural Resources Depletion", value=int(total_depletion))
+        kpi3.metric(label="Latest Year Data (2022)", value=f"{latest_value:,.2f}" if not np.isnan(latest_value) else "N/A")
 
-        # Fill in those three columns with respective metrics or KPIs
-        kpi1.metric(label="Avg Adjusted Savings (%)", value=round(avg_savings, 2), delta=round(avg_savings - 10, 2))
-        kpi2.metric(label="Total Natural Resources Depletion", value=int(total_depletion), delta=-10 + int(total_depletion))
-        
-        # Add conditional coloring for KPI 3 to indicate increase or decrease
-        latest_value = df['2022'].values[0]
-        delta_value = round(latest_value / 100) * 100
-        delta_direction = "+" if latest_value > 1000 else "-"
-        delta_color = "green" if latest_value > 1000 else "red"
-        
-        kpi3.metric(
-            label="Latest Year Data (2022)",
-            value=f"{latest_value:,.2f}",
-            delta=f"{delta_direction}{delta_value}",
-            delta_color=delta_color
-        )
-
-        # Create two columns for charts
+        # Visualization columns
         fig_col1, fig_col2 = st.columns(2)
 
         with fig_col1:
-            st.markdown("### Adjusted Savings Over Years")
-            # Enhanced Line Chart with smoother visuals
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(
-                x=df['Indicator Code'],
-                y=df['Adjusted Savings'],
-                mode='lines+markers',
-                line=dict(color='royalblue', width=2),
-                marker=dict(size=5, color='royalblue')
-            ))
-            fig.update_layout(
-                title="Adjusted Savings Over Years",
-                xaxis_title="Year",
-                yaxis_title="Adjusted Savings",
-                template="plotly_dark"
-            )
-            st.write(fig)
+            st.markdown(f"### {indicator_filter} Over Years")
+            # Line plot for indicator over years
+            fig = px.line(data_frame=df_melted, x='Year', y='Value', title=f"{indicator_filter} Over Years")
+            st.plotly_chart(fig, use_container_width=True, key=f"line_chart_{seconds}")
 
         with fig_col2:
             st.markdown("### Natural Resources Depletion")
-            # Enhanced Bar Chart
-            fig2 = px.bar(
-                data_frame=df, x='Country Name', y='Natural Resources Depletion',
-                title="Natural Resources Depletion",
-                color='Natural Resources Depletion',
-                color_continuous_scale='sunset'
-            )
-            fig2.update_layout(
-                xaxis_title="Country",
-                yaxis_title="Depletion",
-                template="plotly_dark"
-            )
-            st.write(fig2)
+            # Bar plot for natural resources depletion by year
+            fig2 = px.bar(data_frame=df_melted, x='Year', y='Natural Resources Depletion', title='Natural Resources Depletion Over Years')
+            st.plotly_chart(fig2, use_container_width=True, key=f"bar_chart_{seconds}")
 
+        # Additional visualizations
+        st.markdown("### Additional Analysis")
+
+        # Moving Average Line Chart
+        fig3 = px.line(df_melted, x='Year', y=df_melted['Value'].rolling(window=5).mean(), 
+                       title=f"{indicator_filter} 5-Year Moving Average")
+        st.plotly_chart(fig3, use_container_width=True, key=f"moving_avg_{seconds}")
+
+        # Area Chart for cumulative indicator value
+        df_melted['Cumulative Value'] = df_melted['Value'].cumsum()
+        fig4 = px.area(df_melted, x='Year', y='Cumulative Value', title=f"Cumulative {indicator_filter} Over Years")
+        st.plotly_chart(fig4, use_container_width=True, key=f"cumulative_area_{seconds}")
+
+        # Detailed data table view
         st.markdown("### Detailed Data View")
-        st.dataframe(df.style.format("{:.2f}").background_gradient(cmap='viridis', axis=0))
-        
+        st.dataframe(df_melted)
         time.sleep(1)
+
+        # Convert the DataFrame to JSON format
+        json_data = df_melted.to_json(orient='records')
+
+        # Add a unique key based on the selected country and indicator
+        unique_key = f"json_download_button_{country_filter}_{indicator_filter}_{seconds}"  # Make unique key by appending seconds
+
+        # Add a download button with a unique key
+        st.download_button(
+            label="Download Data as JSON",
+            data=json_data,
+            file_name=f"{country_filter}_{indicator_filter}_data.json",
+            mime="application/json",
+            key=unique_key  # Ensure unique key by including seconds
+        )
+        # placeholder.empty()
