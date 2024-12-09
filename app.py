@@ -4,9 +4,9 @@ import pandas as pd  # read csv, df manipulation
 import time  # to simulate real-time data, time loop
 import plotly.express as px  # interactive charts
 import json  # for JSON formatting
-#helllooooo world
+
 # Read CSV from local directory
-df = pd.read_csv("data/filtered_ESGdataset_complete.csv")
+df = pd.read_csv("data/filtered_ESGdataset_complete1.csv")
 
 # Remove any irrelevant columns (like 'Unnamed: 67') and keep only year columns and other necessary columns
 df = df.loc[:, ~df.columns.str.contains('^Unnamed')]
@@ -19,12 +19,40 @@ st.set_page_config(
     layout='wide'
 )
 
+st.markdown("""
+    <style>
+    /* Title styling with improved color */
+    .stTitle {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: bold;
+        margin-top: -20px;
+        margin-bottom: 20px;
+        color: #e0e6f0;  /* Light color for better contrast */
+    }
+    /* Dropdown menu size and hover effect */
+    div[data-baseweb="select"] {
+        max-width: 60%;
+        margin-bottom: 10px; /* Adjust spacing below dropdown */
+        transition: all 0.3s ease-in-out;
+    }
+    div[data-baseweb="select"]:hover {
+        transform: scale(1.03);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # Dashboard title
-st.title("ESG Dashboard")
+st.markdown('<div class="stTitle">ESG Dashboard</div>', unsafe_allow_html=True)
 
 # Top-level filters
-country_filter = st.selectbox("Select the Country", pd.unique(df['Country Name']))
-indicator_filter = st.selectbox("Select Indicator", pd.unique(df['Indicator Name']))
+st.markdown("### Select Economic, Social or Governance")
+country_filter = st.selectbox("", pd.unique(df['Country Name']))
+st.markdown("### Select Metric")
+indicator_filter = st.selectbox("", pd.unique(df['Indicator Name']))
+
+# The rest of the code remains unchanged
+
 
 # Single-element container
 placeholder = st.empty()
@@ -33,7 +61,7 @@ placeholder = st.empty()
 df = df[(df['Country Name'] == country_filter) & (df['Indicator Name'] == indicator_filter)]
 
 # Reshape data for year-based analysis and remove any non-numeric year columns
-df_melted = df.melt(id_vars=['Country Name', 'Country Code', 'Indicator Name', 'Indicator Code'], 
+df_melted = df.melt(id_vars=['Country Name', 'Indicator Name', 'Indicator Code'], 
                     value_vars=year_columns, var_name='Year', value_name='Value')
 df_melted['Year'] = pd.to_numeric(df_melted['Year'], errors='coerce')
 df_melted.dropna(subset=['Year', 'Value'], inplace=True)  # remove rows where Year or Value is NaN
